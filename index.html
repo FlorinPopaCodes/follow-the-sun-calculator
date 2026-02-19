@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme: dark;">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0F172A">
   <title>Follow-the-Sun Shift Coverage Calculator</title>
 
   <!-- Google Fonts -->
@@ -11,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
   <!-- countries-and-timezones -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <script src="https://cdn.jsdelivr.net/gh/manuelmhtr/countries-and-timezones@v3.8.0/dist/index.min.js"></script>
 
   <style>
@@ -79,7 +81,7 @@
       padding: 0.375rem 0.875rem;
       border-radius: 0.375rem;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
       border: 1.5px solid var(--color-border);
       background: transparent;
       color: #CBD5E1;
@@ -88,6 +90,11 @@
     .toggle-btn:hover {
       border-color: var(--color-accent);
       color: var(--color-accent);
+    }
+
+    .toggle-btn:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
     }
 
     .toggle-btn.active {
@@ -116,8 +123,9 @@
       width: 100%;
     }
 
-    .tz-select:focus {
-      outline: none;
+    .tz-select:focus-visible {
+      outline: 2px solid var(--color-accent);
+      outline-offset: 2px;
       border-color: var(--color-accent);
       box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
     }
@@ -205,14 +213,37 @@
       animation: fadeIn 0.3s ease forwards;
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      .fade-in { animation: none; }
+      .shift-card { transition: none; }
+      .toggle-btn { transition: none; }
+      .tz-select { transition: none; }
+    }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--color-bg); }
     ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
+    /* Touch */
+    .toggle-btn,
+    .tz-select {
+      touch-action: manipulation;
+    }
+
+    /* Safe areas */
+    @supports (padding: env(safe-area-inset-left)) {
+      body {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+    }
+
     /* Section label */
     .section-label {
+      display: block;
       font-size: 0.6875rem;
       font-weight: 600;
       text-transform: uppercase;
@@ -231,6 +262,8 @@
   </style>
 </head>
 <body>
+  <a href="#main-content" style="position: absolute; left: -9999px; top: 0; padding: 0.5rem 1rem; background: var(--color-accent); color: #0F172A; font-weight: 600; z-index: 100; border-radius: 0 0 0.375rem 0;" onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">Skip to main content</a>
+
   <!-- Header accent line -->
   <div class="header-accent"></div>
 
@@ -256,7 +289,7 @@
   </header>
 
   <!-- Main content -->
-  <main style="max-width: 1200px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem;">
+  <main id="main-content" style="max-width: 1200px; margin: 0 auto; padding: 1.75rem 1.5rem 3rem;">
 
     <!-- Controls Section -->
     <section id="controls-section" style="margin-bottom: 1.75rem;">
@@ -265,16 +298,16 @@
 
         <!-- Source Timezone -->
         <div>
-          <div class="section-label">Base Timezone</div>
-          <select id="tz-select" class="tz-select" aria-label="Select base timezone">
+          <label for="tz-select" class="section-label">Base Timezone</label>
+          <select id="tz-select" class="tz-select">
             <!-- Populated by JS -->
           </select>
         </div>
 
         <!-- Number of Shifts -->
         <div>
-          <div class="section-label">Number of Shifts</div>
-          <div role="group" aria-label="Number of shifts" style="display: flex; gap: 0.375rem;">
+          <span id="shifts-label" class="section-label">Number of Shifts</span>
+          <div role="group" aria-labelledby="shifts-label" style="display: flex; gap: 0.375rem;">
             <button class="toggle-btn" data-group="shifts" data-value="3">3</button>
             <button class="toggle-btn" data-group="shifts" data-value="4">4</button>
             <button class="toggle-btn" data-group="shifts" data-value="5">5</button>
@@ -285,8 +318,8 @@
 
         <!-- Timezone Tolerance -->
         <div>
-          <div class="section-label">Timezone Tolerance</div>
-          <select id="tolerance-select" class="tz-select" aria-label="Timezone tolerance">
+          <label for="tolerance-select" class="section-label">Timezone Tolerance</label>
+          <select id="tolerance-select" class="tz-select">
             <option value="60">&lt;1h</option>
             <option value="120">&lt;2h</option>
             <option value="180">&lt;3h</option>
@@ -302,7 +335,7 @@
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
           <h2 style="font-size: 1rem; font-weight: 600; color: var(--color-text-primary);">24-Hour UTC Coverage</h2>
           <span style="display: flex; align-items: center; gap: 0.625rem;">
-            <span id="stat-spacing" style="font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 600; color: var(--color-accent);">—</span>
+            <span id="stat-spacing" style="font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 600; color: var(--color-accent);">…</span>
             <span style="font-family: var(--font-mono); font-size: 0.6875rem; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">shift spacing</span>
           </span>
         </div>
@@ -331,7 +364,7 @@
   <footer style="border-top: 1.5px solid var(--color-border); padding: 1.25rem 1.5rem; margin-top: 1rem;">
     <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
       <p style="font-size: 0.8125rem; color: var(--color-text-secondary);">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="display: inline; vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Offsets are DST-aware and calculated for today's date.
         Timezone matches use the <span style="font-family: var(--font-mono);">Intl</span> API + countries-and-timezones data.
       </p>

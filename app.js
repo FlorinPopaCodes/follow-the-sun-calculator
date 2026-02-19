@@ -945,12 +945,35 @@ function recalculate() {
 
 function updateState(key, value) {
   state[key] = value;
+  pushStateToUrl();
   recalculate();
+}
+
+function pushStateToUrl() {
+  const params = new URLSearchParams();
+  params.set('tz', state.baseTimezone);
+  params.set('shifts', String(state.numShifts));
+  params.set('tol', String(state.toleranceMinutes));
+  const url = `${location.pathname}?${params.toString()}`;
+  history.replaceState(null, '', url);
+}
+
+function readStateFromUrl() {
+  const params = new URLSearchParams(location.search);
+  if (params.has('tz')) state.baseTimezone = params.get('tz');
+  if (params.has('shifts')) {
+    const n = parseInt(params.get('shifts'), 10);
+    if (n >= 3 && n <= 7) state.numShifts = n;
+  }
+  if (params.has('tol')) {
+    const t = parseInt(params.get('tol'), 10);
+    if ([60, 120, 180].includes(t)) state.toleranceMinutes = t;
+  }
 }
 
 function initToggleButtons() {
   document.querySelectorAll('.toggle-btn[data-group="shifts"]').forEach(btn => {
-    if (btn.dataset.value === '3') btn.classList.add('active');
+    if (btn.dataset.value === String(state.numShifts)) btn.classList.add('active');
 
     btn.addEventListener('click', () => {
       document.querySelectorAll('.toggle-btn[data-group="shifts"]')
@@ -991,6 +1014,7 @@ function handleResize() {
 // ─── Initialization ───────────────────────────────────────────────────────────
 
 function init() {
+  readStateFromUrl();
   buildTzData();
   populateDropdown();
   initToggleButtons();
