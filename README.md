@@ -20,8 +20,7 @@ Run tests by opening `tests.html`.
 
 ## Tech Stack
 
-- Vanilla JS (no framework)
-- Tailwind CSS v4 (CDN)
+- Vanilla JS + CSS (no framework, no build step)
 - [countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) for timezone/country data
 - Population data from UN/World Bank 2024 estimates
 
