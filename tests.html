@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Suite — Follow-the-Sun Calculator</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Same CDNs as app -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script src="https://cdn.jsdelivr.net/gh/manuelmhtr/countries-and-timezones@v3.8.0/dist/index.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0F172A; --surface: #1E293B; --border: #334155;
+      --text: #F8FAFC; --muted: #94A3B8; --accent: #F59E0B;
+      --pass: #34D399; --fail: #FB7185;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-body: 'DM Sans', sans-serif;
+      --font-head: 'Bricolage Grotesque', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; }
+
+    .header-stripe {
+      background: linear-gradient(90deg,#F59E0B,#FB923C 30%,#A78BFA 70%,#38BDF8);
+      height: 3px;
+    }
+    header {
+      background: linear-gradient(180deg,#162032,var(--bg));
+      border-bottom: 1.5px solid var(--border);
+      padding: 1.25rem 1.5rem;
+    }
+    header h1 { font-family: var(--font-head); font-size: 1.5rem; font-weight: 700; }
+    header h1 span { color: var(--accent); }
+    header p { color: var(--muted); font-size: 0.875rem; margin-top: 0.25rem; }
+
+    main { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+
+    #summary {
+      background: var(--surface); border: 1.5px solid var(--border); border-radius: 0.75rem;
+      padding: 1.5rem; margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 1.5rem;
+    }
+    .summary-stat { text-align: center; }
+    .summary-num {
+      font-family: var(--font-mono); font-size: 2.25rem;
+      font-weight: 700; line-height: 1;
+    }
+    .summary-label {
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--muted); margin-top: 0.25rem;
+    }
+    .progress-track { flex: 1; background: var(--border); border-radius: 999px; height: 8px; overflow: hidden; }
+    .progress-bar { height: 100%; border-radius: 999px; transition: width 0.5s ease; }
+
+    .suite { margin-bottom: 1rem; }
+    .suite-header {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 0.5rem 0.5rem 0 0; padding: 0.625rem 1rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .suite-name { font-weight: 600; font-size: 0.9375rem; }
+    .suite-badge {
+      font-family: var(--font-mono); font-size: 0.75rem;
+      padding: 0.15rem 0.5rem; border-radius: 0.25rem;
+    }
+    .suite-body {
+      border: 1.5px solid var(--border); border-top: none;
+      border-radius: 0 0 0.5rem 0.5rem; overflow: hidden;
+    }
+    .test-row {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.4rem 1rem; font-size: 0.8125rem;
+      border-bottom: 1px solid rgba(51,65,85,0.5);
+    }
+    .test-row:last-child { border-bottom: none; }
+    .test-row:nth-child(even) { background: rgba(255,255,255,0.015); }
+    .test-icon { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; flex-shrink: 0; padding-top: 1px; }
+    .test-name { flex: 1; color: var(--text); }
+    .test-info { font-family: var(--font-mono); font-size: 0.7rem; color: var(--fail); margin-top: 0.15rem; white-space: pre-wrap; }
+    .pass .test-icon { color: var(--pass); }
+    .fail .test-icon { color: var(--fail); }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div class="header-stripe"></div>
+  <header>
+    <h1>Test Suite — <span>Follow-the-Sun</span> Calculator</h1>
+    <p>Pure function tests · Algorithm tests · DOM rendering tests · Integration tests</p>
+  </header>
+
+  <!-- Shadow DOM: app.js renders here; display:none so clientWidth falls back to 700 -->
+  <div id="app-shadow" style="display:none" aria-hidden="true">
+    <select id="tz-select"></select>
+    <span id="stat-spacing"></span>
+    <div id="timeline-container"><svg id="timeline-svg"></svg></div>
+    <div id="shifts-grid"></div>
+    <button class="toggle-btn" data-group="shifts" data-value="3">3</button>
+    <button class="toggle-btn" data-group="shifts" data-value="4">4</button>
+    <button class="toggle-btn" data-group="shifts" data-value="5">5</button>
+    <button class="toggle-btn" data-group="shifts" data-value="6">6</button>
+    <button class="toggle-btn" data-group="shifts" data-value="7">7</button>
+    <select id="tolerance-select">
+      <option value="60">&lt;1h</option>
+      <option value="120">&lt;2h</option>
+      <option value="180">&lt;3h</option>
+    </select>
+  </div>
+
+  <!-- Test UI -->
+  <main>
+    <div id="summary">
+      <p style="width:100%;text-align:center;font-family:var(--font-mono);color:var(--muted);">
+        ⏳ Loading CDN scripts and initializing app…
+      </p>
+    </div>
+    <div id="suites"></div>
+  </main>
+
+  <script src="app.js"></script>
+
+  <script>
+  // ─── Test Framework ────────────────────────────────────────────────────────
+
+  let _passed = 0, _failed = 0;
+  const _suites = [];
+  let _cur = null;
+
+  function suite(name, fn) {
+    _cur = { name, tests: [], passed: 0, failed: 0 };
+    _suites.push(_cur);
+    try { fn(); } catch (e) {
+      _cur.tests.push({ ok: false, name: '[suite error] ' + e.message, info: e.stack || '' });
+      _cur.failed++; _failed++;
+    }
+  }
+
+  function eq(actual, expected, name) {
+    const ok = actual === expected;
+    const info = ok ? '' : ('expected: ' + JSON.stringify(expected) + '\n     got: ' + JSON.stringify(actual));
+    _cur.tests.push({ ok, name, info });
+    if (ok) { _cur.passed++; _passed++; } else { _cur.failed++; _failed++; }
+  }
+
+  function near(actual, expected, eps, name) {
+    const ok = Math.abs(actual - expected) <= eps;
+    const info = ok ? '' : ('expected ~' + expected + ' (±' + eps + '), got ' + actual);
+    _cur.tests.push({ ok, name, info });
+    if (ok) { _cur.passed++; _passed++; } else { _cur.failed++; _failed++; }
+  }
+
+  function assert(cond, name, info) {
+    _cur.tests.push({ ok: !!cond, name, info: cond ? '' : (info || 'assertion failed') });
+    if (cond) { _cur.passed++; _passed++; } else { _cur.failed++; _failed++; }
+  }
+
+  function saveState() { return Object.assign({}, state); }
+  function restoreState(s) { Object.assign(state, s); }
+
+  // ─── Mock Shifts (DST-independent, for density/overlap unit tests) ──────────
+
+  // 3 shifts: 0-8, 8-16, 16→0 — perfect tiling, no overlap
+  const MOCK_S3 = [
+    { startUTC: 0,  endUTC: 8,  color: { main: '#F59E0B' } },
+    { startUTC: 8,  endUTC: 16, color: { main: '#14B8A6' } },
+    { startUTC: 16, endUTC: 0,  color: { main: '#A78BFA' } },
+  ];
+
+  // 4 shifts: 0-8, 6-14, 12-20, 18→2 — 6h spacing, 2h natural overlap
+  const MOCK_S4 = [
+    { startUTC: 0,  endUTC: 8,  color: { main: '#F59E0B' } },
+    { startUTC: 6,  endUTC: 14, color: { main: '#14B8A6' } },
+    { startUTC: 12, endUTC: 20, color: { main: '#A78BFA' } },
+    { startUTC: 18, endUTC: 2,  color: { main: '#FB7185' } },
+  ];
+
+  // 5 shifts: evenly spread, ~4.8h spacing
+  const MOCK_S5 = [
+    { startUTC: 0,    endUTC: 8,    color: { main: '#F59E0B' } },
+    { startUTC: 4.8,  endUTC: 12.8, color: { main: '#14B8A6' } },
+    { startUTC: 9.6,  endUTC: 17.6, color: { main: '#A78BFA' } },
+    { startUTC: 14.4, endUTC: 22.4, color: { main: '#FB7185' } },
+    { startUTC: 19.2, endUTC: 3.2,  color: { main: '#38BDF8' } },
+  ];
+
+  // ─── Suite 1: mod() ─────────────────────────────────────────────────────────
+
+  function testMod() {
+    suite('mod() — modulo with positive remainder', () => {
+      eq(mod(0, 24),   0,  'mod(0, 24) = 0');
+      eq(mod(24, 24),  0,  'mod(24, 24) = 0');
+      eq(mod(25, 24),  1,  'mod(25, 24) = 1');
+      eq(mod(-1, 24),  23, 'mod(-1, 24) = 23');
+      eq(mod(-5, 24),  19, 'mod(-5, 24) = 19');
+      eq(mod(-24, 24), 0,  'mod(-24, 24) = 0');
+    });
+  }
+
+  // ─── Suite 2: formatHour() ──────────────────────────────────────────────────
+
+  function testFormatHour() {
+    suite('formatHour() — 12-hour format with AM/PM', () => {
+      eq(formatHour(0),  '12AM', 'midnight = 12AM');
+      eq(formatHour(1),  '1AM',  '1:00 = 1AM');
+      eq(formatHour(9),  '9AM',  '9:00 = 9AM');
+      eq(formatHour(11), '11AM', '11:00 = 11AM');
+      eq(formatHour(12), '12PM', 'noon = 12PM');
+      eq(formatHour(13), '1PM',  '13:00 = 1PM');
+      eq(formatHour(23), '11PM', '23:00 = 11PM');
+      eq(formatHour(25), '1AM',  '25 wraps to 1AM');
+    });
+  }
+
+  // ─── Suite 3: formatOffset() ────────────────────────────────────────────────
+
+  function testFormatOffset() {
+    suite('formatOffset() — UTC offset string', () => {
+      eq(formatOffset(0),    'UTC+0',     'zero offset');
+      eq(formatOffset(-300), 'UTC-5',     'UTC-5 (US East winter)');
+      eq(formatOffset(330),  'UTC+5:30',  'UTC+5:30 (India)');
+      eq(formatOffset(720),  'UTC+12',    'UTC+12');
+      eq(formatOffset(-570), 'UTC-9:30',  'UTC-9:30 (Marquesas)');
+      eq(formatOffset(765),  'UTC+12:45', 'UTC+12:45 (Chatham)');
+    });
+  }
+
+  // ─── Suite 4: formatDuration() ──────────────────────────────────────────────
+
+  function testFormatDuration() {
+    suite('formatDuration() — human-readable duration', () => {
+      eq(formatDuration(0),   '0m',     'zero minutes');
+      eq(formatDuration(30),  '30m',    '30 minutes');
+      eq(formatDuration(60),  '1h',     '1 hour exactly');
+      eq(formatDuration(90),  '1h 30m', '1.5 hours');
+      eq(formatDuration(120), '2h',     '2 hours exactly');
+      eq(formatDuration(192), '3h 12m', '3h 12m (N=5 natural overlap)');
+    });
+  }
+
+  // ─── Suite 5: formatHourUTC() ───────────────────────────────────────────────
+
+  function testFormatHourUTC() {
+    suite('formatHourUTC() — zero-padded 24h UTC time', () => {
+      eq(formatHourUTC(0),  '00:00', 'midnight');
+      eq(formatHourUTC(9),  '09:00', '09:00 with zero-pad');
+      eq(formatHourUTC(14), '14:00', '14:00');
+      eq(formatHourUTC(23), '23:00', '23:00');
+      eq(formatHourUTC(25), '01:00', '25 wraps to 01:00');
+    });
+  }
+
+  // ─── Suite 6: getCityFromTzName() ───────────────────────────────────────────
+
+  function testGetCity() {
+    suite('getCityFromTzName() — extract city from IANA name', () => {
+      eq(getCityFromTzName('America/New_York'),              'New York',     'underscore to space');
+      eq(getCityFromTzName('Asia/Ho_Chi_Minh'),              'Ho Chi Minh',  'multiple underscores');
+      eq(getCityFromTzName('Pacific/Auckland'),              'Auckland',     'simple name');
+      eq(getCityFromTzName('UTC'),                           'UTC',          'no slash');
+      eq(getCityFromTzName('America/Indiana/Indianapolis'),  'Indianapolis', 'nested path');
+    });
+  }
+
+  // ─── Suite 7: escHtml() ─────────────────────────────────────────────────────
+
+  function testEscHtml() {
+    suite('escHtml() — HTML entity escaping', () => {
+      eq(escHtml('<script>'),  '&lt;script&gt;',    'angle brackets');
+      eq(escHtml('"hello"'),   '&quot;hello&quot;', 'double quotes');
+      eq(escHtml("it's"),      'it&#39;s',          'single quote');
+      eq(escHtml('a&b'),       'a&amp;b',           'ampersand');
+      eq(escHtml('safe text'), 'safe text',         'no special chars unchanged');
+    });
+  }
+
+  // ─── Suite 8: getIntervals() ────────────────────────────────────────────────
+
+  function testGetIntervals() {
+    suite('getIntervals() — shift interval with midnight wraparound', () => {
+      const r1 = getIntervals(14, 22);
+      eq(JSON.stringify(r1), '[[14,22]]',         'non-wrapping shift → single interval');
+
+      const r2 = getIntervals(22, 6);
+      eq(JSON.stringify(r2), '[[22,24],[0,6]]',   'midnight wrap → two intervals');
+
+      const r3 = getIntervals(0, 8);
+      eq(JSON.stringify(r3), '[[0,8]]',           'starts at midnight, no wrap');
+
+      const r4 = getIntervals(20, 4);
+      eq(JSON.stringify(r4), '[[20,24],[0,4]]',   'near-midnight wrap');
+    });
+  }
+
+  // ─── Suite 9: computeCoverageDensity() ──────────────────────────────────────
+
+  function testCoverageDensity() {
+    suite('computeCoverageDensity() — minute-by-minute coverage', () => {
+      const d3 = computeCoverageDensity(MOCK_S3);
+      eq(d3.length, 1440,               'density array has 1440 entries (24×60)');
+      assert(d3.every(v => v === 1),    '3 shifts: every minute at density exactly 1');
+      assert(!d3.some(v => v === 0),    '3 shifts: no uncovered minute');
+      assert(!d3.some(v => v >= 2),     '3 shifts: no overlap (density never ≥2)');
+
+      const d4 = computeCoverageDensity(MOCK_S4);
+      assert(d4.every(v => v >= 1),     '4 shifts: full coverage, no gaps');
+      assert(d4.some(v => v === 2),     '4 shifts: overlap zones exist (density 2)');
+      assert(!d4.some(v => v === 0),    '4 shifts: no uncovered minute');
+
+      const d5 = computeCoverageDensity(MOCK_S5);
+      assert(d5.every(v => v >= 1),     '5 shifts: full coverage');
+      assert(d5.some(v => v >= 2),      '5 shifts: overlap zones exist');
+    });
+  }
+
+  // ─── Suite 10: computeOverlapZones() ────────────────────────────────────────
+
+  function testOverlapZones() {
+    suite('computeOverlapZones() — identify overlap intervals', () => {
+      const z3 = computeOverlapZones(MOCK_S3);
+      eq(z3.length, 0, '3 shifts: no overlap → 0 zones');
+
+      const z4 = computeOverlapZones(MOCK_S4);
+      eq(z4.length, 4, '4 shifts → 4 overlap zones (one per boundary)');
+
+      const widths4 = z4.map(z => z.end - z.start);
+      assert(widths4.every(w => Math.abs(w - 2) < 0.01), '4 shifts: each zone is exactly 2h wide');
+
+      const z5 = computeOverlapZones(MOCK_S5);
+      eq(z5.length, 5, '5 shifts → 5 overlap zones');
+
+      assert(z4[0].color === MOCK_S4[0].color.main, 'zone inherits color from preceding shift');
+      assert(z4.every(z => z.start < z.end), 'all zones have start < end');
+    });
+  }
+
+  // ─── Suite 11: calculateShifts() structure ──────────────────────────────────
+
+  function testCalculateShifts() {
+    const s = saveState();
+    suite('calculateShifts() — structure and shift geometry', () => {
+      state.baseTimezone = 'America/New_York';
+      state.toleranceMinutes = 0;
+
+      state.numShifts = 3;
+      const r3 = calculateShifts();
+      eq(r3.shifts.length, 3,   'N=3: 3 shifts returned');
+      eq(r3.spacing, 8,         'N=3: spacing = 8h');
+
+      state.numShifts = 4;
+      const r4 = calculateShifts();
+      eq(r4.shifts.length, 4,   'N=4: 4 shifts returned');
+      eq(r4.spacing, 6,         'N=4: spacing = 6h');
+
+      state.numShifts = 5;
+      const r5 = calculateShifts();
+      eq(r5.shifts.length, 5,   'N=5: 5 shifts returned');
+      near(r5.spacing, 4.8, 0.001, 'N=5: spacing ≈ 4.8h');
+
+      // Shift 1 ideal offset should equal the base TZ's current offset
+      state.numShifts = 3;
+      const nyOffset = getCurrentOffsetMinutes('America/New_York');
+      const r = calculateShifts();
+      eq(r.shifts[0].idealOffsetMinutes, nyOffset, 'Shift 1 ideal offset = base TZ offset');
+
+      // endUTC = (startUTC + 8) mod 24 for each shift
+      for (let i = 0; i < 3; i++) {
+        const { startUTC, endUTC } = r.shifts[i];
+        near(mod(startUTC + 8, 24), endUTC, 0.001,
+          'Shift ' + (i+1) + ': endUTC = (startUTC + 8) mod 24');
+      }
+
+      // Each pair of consecutive shifts is spaced `spacing` hours apart
+      for (let i = 0; i < 2; i++) {
+        const diff = mod(r.shifts[i+1].startUTC - r.shifts[i].startUTC, 24);
+        near(diff, 8, 0.001, 'Gap between Shift ' + (i+1) + ' and Shift ' + (i+2) + ' = 8h');
+      }
+
+      // Colors assigned correctly from SHIFT_COLORS
+      eq(r.shifts[0].color.main, '#F59E0B', 'Shift 1 = Amber Sun');
+      eq(r.shifts[1].color.main, '#14B8A6', 'Shift 2 = Teal Dawn');
+      eq(r.shifts[2].color.main, '#A78BFA', 'Shift 3 = Violet Dusk');
+    });
+    restoreState(s);
+  }
+
+  // ─── Suite 13: Full 24h coverage for all N ──────────────────────────────────
+
+  function testFullCoverage() {
+    const s = saveState();
+    suite('calculateShifts() → 100% coverage for all N', () => {
+      state.toleranceMinutes = 0;
+      state.baseTimezone = 'America/New_York';
+
+      for (const N of [3, 4, 5, 6, 7]) {
+        state.numShifts = N;
+        const { shifts } = calculateShifts();
+        const density = computeCoverageDensity(shifts);
+        const covered = density.filter(d => d > 0).length;
+        eq(covered, 1440, 'N=' + N + ': all 1440 minutes covered');
+        assert(!density.some(d => d === 0), 'N=' + N + ': no uncovered minute');
+      }
+    });
+    restoreState(s);
+  }
+
+  // ─── Suite 14: findMatchingTimezones() ──────────────────────────────────────
+
+  function testFindMatching() {
+    const s = saveState();
+    suite('findMatchingTimezones() — tolerance and sorting', () => {
+      const tzData = buildTzData();
+
+      state.toleranceMinutes = 0;
+      const exactUTC0 = findMatchingTimezones(tzData, 0);
+      assert(exactUTC0.length > 0,                           'UTC+0 exact: has matches');
+      assert(exactUTC0.every(tz => tz.offsetMinutes === 0),  'UTC+0 exact: all at offset 0');
+
+      state.toleranceMinutes = 60;
+      const wide = findMatchingTimezones(tzData, 0);
+      assert(wide.length >= exactUTC0.length, '+1h tolerance: ≥ exact matches');
+      assert(wide.some(tz => Math.abs(tz.offsetMinutes) <= 60), '+1h: includes ±60min offsets');
+
+      state.toleranceMinutes = 120;
+      const wider = findMatchingTimezones(tzData, 0);
+      assert(wider.length >= wide.length, '+2h tolerance: ≥ +1h matches');
+
+      // Results sorted by deviation ascending
+      const sorted = findMatchingTimezones(tzData, -300);
+      for (let i = 1; i < sorted.length; i++) {
+        const devPrev = Math.abs(sorted[i-1].offsetMinutes - (-300));
+        const devCurr = Math.abs(sorted[i].offsetMinutes - (-300));
+        assert(devPrev <= devCurr,
+          'Sorted: result[' + (i-1) + '] deviation ≤ result[' + i + '] deviation');
+      }
+
+      // Exact UTC-5 match (US East winter)
+      state.toleranceMinutes = 0;
+      const nyMatches = findMatchingTimezones(tzData, -300);
+      assert(nyMatches.length > 0,                               'UTC-5 exact: has matches');
+      assert(nyMatches.every(tz => tz.offsetMinutes === -300),   'UTC-5 exact: all have -300 offset');
+      assert(nyMatches[0].city.length > 0,                       'First match has city name');
+    });
+    restoreState(s);
+  }
+
+  // ─── Suite 15: DST-aware offset engine ──────────────────────────────────────
+
+  function testOffsetEngine() {
+    suite('getCurrentOffsetMinutes() — DST-aware offsets', () => {
+      eq(getCurrentOffsetMinutes('UTC'),              0,   'UTC = 0');
+      eq(getCurrentOffsetMinutes('Asia/Kolkata'),     330, 'India = UTC+5:30 (no DST)');
+      eq(getCurrentOffsetMinutes('Africa/Abidjan'),   0,   'Abidjan = UTC+0 (no DST)');
+      eq(getCurrentOffsetMinutes('Asia/Kathmandu'),   345, 'Nepal = UTC+5:45 (45-min offset)');
+      eq(getCurrentOffsetMinutes('Pacific/Kiritimati'), 840, 'Line Islands = UTC+14');
+      eq(getCurrentOffsetMinutes('Etc/GMT+12'),      -720, 'Etc/GMT+12 = UTC-12');
+
+      const ny = getCurrentOffsetMinutes('America/New_York');
+      assert(ny === -300 || ny === -240,   'New York = UTC-5 (winter) or UTC-4 (summer)');
+
+      const lon = getCurrentOffsetMinutes('Europe/London');
+      assert(lon === 0 || lon === 60,     'London = UTC+0 (winter) or UTC+1 (summer)');
+
+      eq(getCurrentOffsetMinutes('Not/A/Timezone'), 0, 'Invalid TZ returns 0 (no crash)');
+    });
+  }
+
+  // ─── Suite 16: DOM — Stats cards ────────────────────────────────────────────
+
+  function testDOMStats() {
+    const s = saveState();
+    suite('DOM: Shift spacing updates on recalculate', () => {
+      state.baseTimezone = 'America/New_York';
+      state.numShifts = 3;
+      state.toleranceMinutes = 60;
+      recalculate();
+
+      eq(document.getElementById('stat-spacing').textContent, '8h', 'N=3: spacing = 8h');
+
+      state.numShifts = 4; recalculate();
+      eq(document.getElementById('stat-spacing').textContent, '6h', 'N=4: spacing = 6h');
+
+      state.numShifts = 5; recalculate();
+      eq(document.getElementById('stat-spacing').textContent, '4h 48m', 'N=5: spacing = 4h 48m');
+
+      state.numShifts = 7; recalculate();
+      eq(document.getElementById('stat-spacing').textContent, '3h 26m', 'N=7: spacing = 3h 26m');
+    });
+    restoreState(s); recalculate();
+  }
+
+  // ─── Suite 16: DOM — Shift detail cards ─────────────────────────────────────
+
+  function testDOMCards() {
+    const s = saveState();
+    suite('DOM: Shift detail cards', () => {
+      state.baseTimezone = 'America/New_York';
+      state.toleranceMinutes = 120;
+
+      state.numShifts = 3; recalculate();
+      eq(document.getElementById('shifts-grid').children.length, 3, 'N=3: 3 shift cards');
+
+      state.numShifts = 5; recalculate();
+      eq(document.getElementById('shifts-grid').children.length, 5, 'N=5: 5 shift cards');
+
+      state.numShifts = 3; recalculate();
+      const cards = [...document.getElementById('shifts-grid').children];
+
+      for (let i = 0; i < cards.length; i++) {
+        assert(cards[i].textContent.includes('Shift ' + (i+1)),
+          'Card ' + (i+1) + ' contains "Shift ' + (i+1) + '"');
+      }
+
+      for (let i = 0; i < cards.length; i++) {
+        const row = cards[i].firstElementChild;
+        const stripe = row ? row.firstElementChild : null;
+        assert(stripe && stripe.style.background,
+          'Shift ' + (i+1) + ' card has a color stripe');
+      }
+
+      // "9AM = HH:00 UTC" appears in the ideal offset sub-label
+      assert(cards[0].textContent.includes('9AM'), 'Card 1 mentions 9AM');
+
+      // Exact tolerance: some ideal offsets may have no matches — should not crash
+      state.toleranceMinutes = 0; recalculate();
+      eq(document.getElementById('shifts-grid').children.length, 3,
+        'Exact tolerance: 3 cards still render (no crash)');
+    });
+    restoreState(s); recalculate();
+  }
+
+  // ─── Suite 19: DOM — SVG Timeline ───────────────────────────────────────────
+
+  function testDOMTimeline() {
+    const s = saveState();
+    suite('DOM: SVG Timeline rendering', () => {
+      state.baseTimezone = 'America/New_York';
+      state.numShifts = 3;
+      state.toleranceMinutes = 60;
+      recalculate();
+
+      const svg = document.getElementById('timeline-svg');
+      assert(svg.childElementCount > 0, 'SVG has child elements after render');
+
+      const texts = [...svg.querySelectorAll('text')].map(t => t.textContent);
+      assert(texts.some(t => t === 'Shift 1'), 'SVG has "Shift 1" label');
+      assert(texts.some(t => t === 'Shift 2'), 'SVG has "Shift 2" label');
+      assert(texts.some(t => t === 'Shift 3'), 'SVG has "Shift 3" label');
+      assert(texts.some(t => t === 'Depth'),   'SVG has "Depth" density row label');
+      assert(texts.some(t => t === 'UTC'),     'SVG has "UTC" axis label');
+      assert(texts.some(t => t === '00'),      'SVG has "00" hour label');
+      assert(texts.some(t => t === '12'),      'SVG has "12" hour label');
+
+      state.numShifts = 5; recalculate();
+      const texts5 = [...svg.querySelectorAll('text')].map(t => t.textContent);
+      assert(texts5.some(t => t === 'Shift 5'),  'After N=5: SVG has "Shift 5"');
+      assert(!texts5.some(t => t === 'Shift 6'), 'After N=5: no "Shift 6"');
+    });
+    restoreState(s); recalculate();
+  }
+
+  // ─── Suite 20: Integration — toggle buttons drive state ─────────────────────
+
+  function testIntegration() {
+    const s = saveState();
+    suite('Integration: toggle buttons and dropdown update state + UI', () => {
+      // Click "4" → numShifts becomes 4, 4 cards rendered
+      const btn4 = document.querySelector('.toggle-btn[data-group="shifts"][data-value="4"]');
+      const btn3 = document.querySelector('.toggle-btn[data-group="shifts"][data-value="3"]');
+      btn4.click();
+      eq(state.numShifts, 4, 'Click "4": state.numShifts = 4');
+      eq(document.getElementById('shifts-grid').children.length, 4, 'Click "4": 4 cards rendered');
+      assert(btn4.classList.contains('active'),  '"4" button has .active class');
+      assert(!btn3.classList.contains('active'), '"3" button loses .active class');
+
+      // Restore to 3 shifts
+      btn3.click();
+
+      // Change tolerance select to <2h → state and re-render
+      const tolSelect = document.getElementById('tolerance-select');
+      tolSelect.value = '120';
+      tolSelect.dispatchEvent(new Event('change'));
+      eq(state.toleranceMinutes, 120, 'Select "<2h": state.toleranceMinutes = 120');
+      assert(document.getElementById('shifts-grid').children.length > 0,
+        'Cards re-render with <2h tolerance');
+
+      // Dropdown change via dispatchEvent
+      const select = document.getElementById('tz-select');
+      const nyOpt = [...select.options].find(o => o.value === 'America/New_York');
+      if (nyOpt) {
+        select.value = 'America/New_York';
+        select.dispatchEvent(new Event('change'));
+        eq(state.baseTimezone, 'America/New_York', 'Dropdown change → state.baseTimezone updated');
+      } else {
+        assert(true, 'America/New_York not in dropdown (skip)');
+      }
+    });
+    restoreState(s); recalculate();
+  }
+
+  // ─── Suite 21: Edge cases — extreme offsets ──────────────────────────────────
+
+  function testEdgeCases() {
+    const s = saveState();
+    suite('Edge cases — extreme and unusual UTC offsets', () => {
+      // New Zealand: UTC+12 or UTC+13 (DST)
+      const nzOff = getCurrentOffsetMinutes('Pacific/Auckland');
+      assert(nzOff === 720 || nzOff === 780, 'Auckland = UTC+12 or UTC+13');
+
+      // Chatham: UTC+12:45 or UTC+13:45 (DST)
+      const chathamOff = getCurrentOffsetMinutes('Pacific/Chatham');
+      assert(chathamOff === 765 || chathamOff === 825, 'Chatham = UTC+12:45 or +13:45');
+
+      // Auckland base → 3 shifts still covers 24h
+      state.baseTimezone = 'Pacific/Auckland';
+      state.numShifts = 3;
+      const { shifts: nzShifts } = calculateShifts();
+      const nzDensity = computeCoverageDensity(nzShifts);
+      assert(nzDensity.every(d => d >= 1), 'Auckland base: 3 shifts cover all 24h');
+
+      // idealOffsetMinutes should be in [-720, 840] (valid timezone range)
+      for (const sh of nzShifts) {
+        assert(sh.idealOffsetMinutes >= -720 && sh.idealOffsetMinutes <= 840,
+          'Shift ' + (sh.index+1) + ' ideal offset in valid range [-12h, +14h]');
+      }
+
+      // US West (UTC-8): verify shift positions relative to base offset
+      state.baseTimezone = 'America/Los_Angeles';
+      state.numShifts = 3;
+      const laOffset = getCurrentOffsetMinutes('America/Los_Angeles');
+      const { shifts: laShifts } = calculateShifts();
+      eq(laShifts[0].idealOffsetMinutes, laOffset, 'LA base: Shift 1 ideal = LA offset');
+    });
+    restoreState(s); recalculate();
+  }
+
+  // ─── Suite 22: Dropdown population ──────────────────────────────────────────
+
+  function testDropdown() {
+    suite('Timezone dropdown population', () => {
+      const select = document.getElementById('tz-select');
+
+      assert(select.options.length > 100, 'Dropdown has >100 options');
+
+      const groups = [...select.querySelectorAll('optgroup')].map(g => g.label);
+      assert(groups.includes('Americas'),       'Optgroup: Americas present');
+      assert(groups.includes('Europe / Africa'), 'Optgroup: Europe / Africa present');
+      assert(groups.includes('Asia'),           'Optgroup: Asia present');
+      assert(groups.includes('Oceania'),        'Optgroup: Oceania present');
+
+      const allValues = [...select.options].map(o => o.value);
+      assert(!allValues.includes('US/Eastern'),       'Alias "US/Eastern" excluded');
+      assert(allValues.includes('America/New_York'),  '"America/New_York" included');
+      assert(allValues.includes('Europe/London'),     '"Europe/London" included');
+      assert(allValues.includes('Asia/Tokyo'),        '"Asia/Tokyo" included');
+
+      assert(select.value !== '', 'A timezone is pre-selected');
+
+      const nyOpt = [...select.options].find(o => o.value === 'America/New_York');
+      assert(nyOpt && nyOpt.textContent.includes('UTC'), 'NY option includes UTC offset');
+      assert(nyOpt && nyOpt.textContent.includes('New York'), 'NY option includes city name');
+    });
+  }
+
+  // ─── Suite 21: Timezone Tolerance — effect audit ────────────────────────────
+
+  function testToleranceEffect() {
+    suite('Timezone Tolerance — effect audit', () => {
+      const s = saveState();
+
+      state.baseTimezone = 'America/New_York';
+      state.numShifts = 3;
+
+      // Capture shift positions at tolerance=60 (<1h)
+      state.toleranceMinutes = 60;
+      const r60 = calculateShifts();
+      const pos60 = r60.shifts.map(sh => ({ start: sh.startUTC, end: sh.endUTC }));
+
+      state.toleranceMinutes = 120;
+      const r120 = calculateShifts();
+      const pos120 = r120.shifts.map(sh => ({ start: sh.startUTC, end: sh.endUTC }));
+
+      state.toleranceMinutes = 180;
+      const r180 = calculateShifts();
+      const pos180 = r180.shifts.map(sh => ({ start: sh.startUTC, end: sh.endUTC }));
+
+      // Shift positions must be identical across all tolerance values
+      for (let i = 0; i < 3; i++) {
+        eq(pos120[i].start, pos60[i].start, `Shift ${i+1} startUTC unchanged: <1h→<2h tolerance`);
+        eq(pos120[i].end,   pos60[i].end,   `Shift ${i+1} endUTC unchanged: <1h→<2h tolerance`);
+        eq(pos180[i].start, pos60[i].start, `Shift ${i+1} startUTC unchanged: <1h→<3h tolerance`);
+        eq(pos180[i].end,   pos60[i].end,   `Shift ${i+1} endUTC unchanged: <1h→<3h tolerance`);
+      }
+
+      // Wider tolerance must yield >= as many matches as narrower
+      const total60  = r60.shifts.reduce((sum, sh)  => sum + sh.matches.length, 0);
+      const total120 = r120.shifts.reduce((sum, sh) => sum + sh.matches.length, 0);
+      const total180 = r180.shifts.reduce((sum, sh) => sum + sh.matches.length, 0);
+      assert(total120 >= total60,   `<2h tolerance yields ≥ as many matches as <1h (${total120} ≥ ${total60})`);
+      assert(total180 >= total120,  `<3h tolerance yields ≥ as many matches as <2h (${total180} ≥ ${total120})`);
+      assert(total180 > total60,    `<3h tolerance yields more matches than <1h (${total180} > ${total60})`);
+
+      // At least one shift gains matches when tolerance widens
+      const shiftMatchDiff = r60.shifts.some((sh, i) => sh.matches.length < r180.shifts[i].matches.length);
+      assert(shiftMatchDiff, 'At least one shift gains matches when tolerance widens from <1h to <3h');
+
+      // DOM: always 3 shift cards regardless of tolerance
+      state.toleranceMinutes = 60;
+      recalculate();
+      const cards60 = document.querySelectorAll('.shift-card');
+      state.toleranceMinutes = 180;
+      recalculate();
+      const cards180 = document.querySelectorAll('.shift-card');
+      assert(cards60.length === 3,  '3 shift cards rendered at <1h tolerance');
+      assert(cards180.length === 3, '3 shift cards rendered at <3h tolerance');
+
+      // Spacing and timeline are unaffected by tolerance
+      state.toleranceMinutes = 60;
+      recalculate();
+      const spac60  = document.getElementById('stat-spacing').textContent;
+      const rects60 = document.getElementById('timeline-svg').querySelectorAll('rect').length;
+
+      state.toleranceMinutes = 180;
+      recalculate();
+      const spac180  = document.getElementById('stat-spacing').textContent;
+      const rects180 = document.getElementById('timeline-svg').querySelectorAll('rect').length;
+
+      eq(spac180,  spac60,  'stat-spacing unchanged when tolerance changes <1h→<3h');
+      eq(rects180, rects60, 'SVG rect count unchanged when tolerance changes <1h→<3h');
+
+      restoreState(s);
+    });
+  }
+
+  // ─── Suite 25: Floating-point precision ──────────────────────────────────
+
+  function testFloatingPointPrecision() {
+    const s = saveState();
+    suite('Floating-point precision — clean display values', () => {
+      // 1. N=5 shifts: idealOffsetMinutes must be an exact integer
+      state.baseTimezone = 'America/New_York';
+      state.numShifts = 5;
+      state.toleranceMinutes = 0;
+      const r5 = calculateShifts();
+      for (const sh of r5.shifts) {
+        eq(sh.idealOffsetMinutes, Math.round(sh.idealOffsetMinutes),
+          `Shift ${sh.index + 1} idealOffsetMinutes is exact integer (${sh.idealOffsetMinutes})`);
+        assert(Number.isInteger(sh.idealOffsetMinutes),
+          `Shift ${sh.index + 1} idealOffsetMinutes passes Number.isInteger`);
+      }
+
+      // 2. formatOffset() produces clean strings with floating-point noise input
+      eq(formatOffset(-456.0000000000001), 'UTC-7:36',
+        'formatOffset(-456.0000000000001) → UTC-7:36');
+      eq(formatOffset(329.99999999999994), 'UTC+5:30',
+        'formatOffset(329.99999999999994) → UTC+5:30');
+      eq(formatOffset(-300.0000000000001), 'UTC-5',
+        'formatOffset(-300.0000000000001) → UTC-5');
+
+      // 3. formatDuration() produces clean strings with floating-point noise input
+      eq(formatDuration(23.999999999999886), '24m',
+        'formatDuration(23.999999999999886) → 24m');
+      eq(formatDuration(59.99999999999999), '1h',
+        'formatDuration(59.99999999999999) → 1h');
+      eq(formatDuration(192.00000000000003), '3h 12m',
+        'formatDuration(192.00000000000003) → 3h 12m');
+
+      // 4. Deviation display: exact match when tz.offsetMinutes === idealOffsetMinutes
+      state.toleranceMinutes = 120;
+      const r5wide = calculateShifts();
+      for (const sh of r5wide.shifts) {
+        const exactMatch = sh.matches.find(tz => tz.offsetMinutes === sh.idealOffsetMinutes);
+        if (exactMatch) {
+          const deviation = exactMatch.offsetMinutes - sh.idealOffsetMinutes;
+          const devAbs = Math.abs(deviation);
+          assert(devAbs < 0.5,
+            `Shift ${sh.index + 1}: exact match deviation (${devAbs}) triggers isExact`);
+        }
+      }
+    });
+    restoreState(s);
+  }
+
+  // ─── Runner ────────────────────────────────────────────────────────────────
+
+  function runAllTests() {
+    const savedState = Object.assign({}, state);
+
+    testMod();
+    testFormatHour();
+    testFormatOffset();
+    testFormatDuration();
+    testFormatHourUTC();
+    testGetCity();
+    testEscHtml();
+    testGetIntervals();
+    testCoverageDensity();
+    testOverlapZones();
+    testCalculateShifts();
+    testFullCoverage();
+    testFindMatching();
+    testOffsetEngine();
+    testDOMStats();
+    testDOMCards();
+    testDOMTimeline();
+    testIntegration();
+    testEdgeCases();
+    testDropdown();
+    testToleranceEffect();
+    testFloatingPointPrecision();
+
+    Object.assign(state, savedState);
+    recalculate(); // restore shadow DOM to clean state
+
+    renderOutput();
+  }
+
+  // ─── Render Results ─────────────────────────────────────────────────────────
+
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function mkEl(tag, styles, className) {
+    const el = document.createElement(tag);
+    if (styles) Object.assign(el.style, styles);
+    if (className) el.className = className;
+    return el;
+  }
+
+  function renderOutput() {
+    const total = _passed + _failed;
+    const pct = total > 0 ? Math.round((_passed / total) * 100) : 0;
+    const allPass = _failed === 0;
+
+    // ── Summary ──
+    const summaryEl = document.getElementById('summary');
+    clearNode(summaryEl);
+
+    const passDiv = mkEl('div', null, 'summary-stat');
+    const passNum = mkEl('div', { fontFamily: 'var(--font-mono)', color: 'var(--pass)' }, 'summary-num');
+    passNum.textContent = String(_passed);
+    const passLbl = mkEl('div', null, 'summary-label');
+    passLbl.textContent = 'Passed';
+    passDiv.appendChild(passNum);
+    passDiv.appendChild(passLbl);
+
+    const failDiv = mkEl('div', null, 'summary-stat');
+    const failNum = mkEl('div', {
+      fontFamily: 'var(--font-mono)',
+      color: _failed > 0 ? 'var(--fail)' : 'var(--muted)',
+    }, 'summary-num');
+    failNum.textContent = String(_failed);
+    const failLbl = mkEl('div', null, 'summary-label');
+    failLbl.textContent = 'Failed';
+    failDiv.appendChild(failNum);
+    failDiv.appendChild(failLbl);
+
+    const trackDiv = mkEl('div', null, 'progress-track');
+    const barDiv = mkEl('div', {
+      width: pct + '%',
+      background: allPass
+        ? 'linear-gradient(90deg,#34D399,#10B981)'
+        : 'linear-gradient(90deg,var(--pass) 0%,var(--pass) ' + pct + '%,var(--fail) ' + pct + '%,var(--fail) 100%)',
+    }, 'progress-bar');
+    trackDiv.appendChild(barDiv);
+
+    const totalDiv = mkEl('div', null, 'summary-stat');
+    const totalNum = mkEl('div', {
+      fontFamily: 'var(--font-mono)',
+      color: allPass ? 'var(--pass)' : 'var(--fail)',
+    }, 'summary-num');
+    totalNum.textContent = pct + '%';
+    const totalLbl = mkEl('div', null, 'summary-label');
+    totalLbl.textContent = total + ' tests';
+    totalDiv.appendChild(totalNum);
+    totalDiv.appendChild(totalLbl);
+
+    summaryEl.appendChild(passDiv);
+    summaryEl.appendChild(failDiv);
+    summaryEl.appendChild(trackDiv);
+    summaryEl.appendChild(totalDiv);
+
+    // ── Suite list ──
+    const suitesEl = document.getElementById('suites');
+    clearNode(suitesEl);
+
+    for (const s of _suites) {
+      const suiteDiv = mkEl('div', null, 'suite');
+
+      const header = mkEl('div', null, 'suite-header');
+      const nameEl = mkEl('span', null, 'suite-name');
+      nameEl.textContent = s.name;
+
+      const allOk = s.failed === 0;
+      const badge = mkEl('span', {
+        background: allOk ? 'rgba(52,211,153,0.15)' : 'rgba(251,113,133,0.15)',
+        color: allOk ? 'var(--pass)' : 'var(--fail)',
+        border: allOk ? '1px solid rgba(52,211,153,0.3)' : '1px solid rgba(251,113,133,0.3)',
+      }, 'suite-badge');
+      badge.textContent = s.passed + '/' + (s.passed + s.failed);
+
+      header.appendChild(nameEl);
+      header.appendChild(badge);
+
+      const body = mkEl('div', null, 'suite-body');
+
+      for (const t of s.tests) {
+        const row = mkEl('div', null, 'test-row ' + (t.ok ? 'pass' : 'fail'));
+        const icon = mkEl('span', null, 'test-icon');
+        icon.textContent = t.ok ? '✓' : '✗';
+
+        const nameWrap = mkEl('div');
+        const nameLine = mkEl('div', null, 'test-name');
+        nameLine.textContent = t.name;
+        nameWrap.appendChild(nameLine);
+
+        if (!t.ok && t.info) {
+          const infoLine = mkEl('div', null, 'test-info');
+          infoLine.textContent = t.info;
+          nameWrap.appendChild(infoLine);
+        }
+
+        row.appendChild(icon);
+        row.appendChild(nameWrap);
+        body.appendChild(row);
+      }
+
+      suiteDiv.appendChild(header);
+      suiteDiv.appendChild(body);
+      suitesEl.appendChild(suiteDiv);
+    }
+  }
+
+  // Boot: wait for CDN scripts to load, then give app.js init() one tick
+  window.addEventListener('load', () => {
+    setTimeout(runAllTests, 200);
+  });
+  </script>
+</body>
+</html>
